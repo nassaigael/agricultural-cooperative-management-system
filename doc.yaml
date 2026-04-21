@@ -1,0 +1,287 @@
+openapi: 3.0.3
+info:
+  title: API Fédération Agricole Madagascar
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /collectivites:
+    get:
+      tags: [Collectivites]
+      summary: Liste des collectivités agricoles
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Collectivite'
+    post:
+      tags: [Collectivites]
+      summary: Ouvrir une nouvelle collectivité
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectiviteInput'
+      responses:
+        '201':
+          description: Collectivité créée
+        '403':
+          description: Autorisation fédérale manquante ou conditions non remplies
+
+  /collectivites/{collectiviteId}/membres:
+    post:
+      tags: [Membres]
+      summary: Admission d'un nouveau membre
+      parameters:
+        - name: collectiviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembreInput'
+      responses:
+        '201':
+          description: Membre admis
+
+  /membres/{membreId}/mandats:
+    post:
+      tags: [Membres]
+      summary: Assigner un poste spécifique (Mandat 1 an)
+      parameters:
+        - name: membreId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [poste, annee]
+              properties:
+                poste:
+                  type: string
+                  enum: [PRESIDENT, ADJOINT, TRESORIER, SECRETAIRE]
+                annee:
+                  type: integer
+      responses:
+        '201':
+          description: Mandat enregistré
+
+  /collectivites/{collectiviteId}/comptes:
+    get:
+      tags: [Tresorerie]
+      summary: État des comptes (Caisse, Banque, Mobile Money)
+      parameters:
+        - name: collectiviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Liste des comptes
+    post:
+      tags: [Tresorerie]
+      summary: Ajouter un compte financier
+      parameters:
+        - name: collectiviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompteInput'
+      responses:
+        '201':
+          description: Compte créé
+
+  /collectivites/{collectiviteId}/cotisations:
+    post:
+      tags: [Tresorerie]
+      summary: Enregistrer une cotisation
+      parameters:
+        - name: collectiviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CotisationInput'
+      responses:
+        '201':
+          description: Encaissement enregistré
+
+  /activites:
+    post:
+      tags: [Activites]
+      summary: Créer une activité
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiviteInput'
+      responses:
+        '201':
+          description: Activité planifiée
+
+  /activites/{activiteId}/presences:
+    post:
+      tags: [Activites]
+      summary: Enregistrer l'émargement
+      parameters:
+        - name: activiteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PresenceInput'
+      responses:
+        '201':
+          description: Présences enregistrées
+
+  /collectivites/{collectiviteId}/statistiques:
+    get:
+      tags: [Collectivites]
+      summary: Rapport mensuel et statistiques internes
+      parameters:
+        - name: collectiviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: debut
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: fin
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Statistiques récupérées
+
+components:
+  schemas:
+    Collectivite:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        numero: { type: string }
+        nom: { type: string }
+        ville: { type: string }
+        specialite: { type: string }
+        dateCreation: { type: string, format: date }
+
+    CollectiviteInput:
+      type: object
+      required: [nom, ville, specialite, membresFondateurs, autorisationFederale]
+      properties:
+        nom: { type: string }
+        ville: { type: string }
+        specialite: { type: string }
+        autorisationFederale: { type: boolean }
+        membresFondateurs:
+          type: array
+          minItems: 10
+          items:
+            $ref: '#/components/schemas/Fondateur'
+
+    Fondateur:
+      type: object
+      properties:
+        membreId: { type: string, format: uuid }
+        poste: { type: string }
+
+    MembreInput:
+      type: object
+      required: [nom, prenoms, dateNaissance, genre, parainId, fraisAdhesion]
+      properties:
+        nom: { type: string }
+        prenoms: { type: string }
+        dateNaissance: { type: string, format: date }
+        genre: { type: string, enum: [MASCULIN, FEMININ] }
+        adresse: { type: string }
+        metier: { type: string }
+        telephone: { type: string }
+        email: { type: string, format: email }
+        parainId: { type: string, format: uuid }
+        fraisAdhesion: { type: number, example: 50000 }
+
+    CompteInput:
+      type: object
+      required: [type, titulaire]
+      properties:
+        type: { type: string, enum: [CAISSE, BANCAIRE, MOBILE_MONEY] }
+        titulaire: { type: string }
+        banque: { type: string, enum: [BRED, MCB, BMOI, BOA, BGFI, AFG, ACCES_BANQUE, BAOBAB, SIPEM] }
+        numeroCompte: { type: string, pattern: '^[0-9]{23}$' }
+        service: { type: string, enum: [ORANGE_MONEY, MVOLA, AIRTEL_MONEY] }
+        numeroTelephone: { type: string }
+
+    CotisationInput:
+      type: object
+      required: [membreId, montant, modePaiement, periodicite]
+      properties:
+        membreId: { type: string, format: uuid }
+        montant: { type: number }
+        date: { type: string, format: date }
+        modePaiement: { type: string, enum: [ESPECE, VIREMENT, MOBILE_MONEY] }
+        periodicite: { type: string, enum: [MENSUELLE, ANNUELLE, PONCTUELLE] }
+
+    ActiviteInput:
+      type: object
+      required: [titre, typeActivite, date]
+      properties:
+        titre: { type: string }
+        typeActivite: { type: string, enum: [AG_MENSUELLE, FORMATION_JUNIOR, EXCEPTIONNELLE] }
+        estObligatoire: { type: boolean }
+        cible: { type: string, enum: [TOUS, JUNIORS] }
+        date: { type: string, format: date-time }
+
+    PresenceInput:
+      type: object
+      required: [membreId, statut]
+      properties:
+        membreId: { type: string, format: uuid }
+        statut: { type: string, enum: [PRESENT, ABSENT, EXCUSE] }
+        motifAbsence: { type: string }
+        estInvite: { type: boolean }
